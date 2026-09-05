@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 
 export async function POST(_: Request, { params }: { params: Promise<{ username: string }> }) {
-  const actor = await requireUser();
-  const { username } = await params;
+  const actor = await requireUser(); const { username } = await params;
   const target = await db.user.findUnique({ where: { username }, include: { profile: true } });
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
   if (target.id === actor.id) return NextResponse.json({ error: "You cannot follow yourself" }, { status: 400 });
@@ -16,4 +15,13 @@ export async function POST(_: Request, { params }: { params: Promise<{ username:
   await db.follow.create({ data: { followerId: actor.id, followingId: target.id } });
   await db.notification.create({ data: { userId: target.id, actorId: actor.id, type: "FOLLOW" } });
   return NextResponse.json({ following: true });
+}
+
+export async function DELETE(_: Request, { params }: { params: Promise<{ username: string }> }) {
+  const actor = await requireUser(); const { username } = await params;
+  const target = await db.user.findUnique({ where: { username }, select: { id: true } });
+  if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  await db.follow.deleteMany({ where: { followerId: actor.id, followingId: target.id } });
+  await db.followRequest.deleteMany({ where: { requesterId: actor.id, targetId: target.id } });
+  return NextResponse.json({ following: false });
 }

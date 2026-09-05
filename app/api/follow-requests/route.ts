@@ -7,7 +7,6 @@ export async function GET() {
   const requests = await db.followRequest.findMany({
     where: { targetId: user.id },
     orderBy: { createdAt: "desc" },
-    include: { requester: { include: { profile: true, verification: true } } },
   });
   return NextResponse.json({ requests });
 }

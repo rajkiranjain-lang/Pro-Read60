@@ -6,13 +6,13 @@ export async function GET(request: Request) {
   const user = await getCurrentUser();
   const url = new URL(request.url);
   const cursor = url.searchParams.get("cursor");
-  const following = user ? await db.follow.findMany({ where: { followerId: user.id }, select: { followingId: true } }) : [];
-  const authorIds = following.map((x) => x.followingId);
-  const muted = user ? await db.mutedUser.findMany({ where: { muterId: user.id }, select: { mutedId: true } }) : [];
-  const blocked = user ? await db.blockedUser.findMany({ where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] }, select: { blockerId: true, blockedId: true } }) : [];
-  const hiddenIds = new Set(blocked.flatMap((x) => [x.blockerId, x.blockedId]));
+  const following: { followingId: string }[] = user ? await db.follow.findMany({ where: { followerId: user.id }, select: { followingId: true } }) : [];
+  const authorIds = following.map((x: { followingId: string }) => x.followingId);
+  const muted: { mutedId: string }[] = user ? await db.mutedUser.findMany({ where: { muterId: user.id }, select: { mutedId: true } }) : [];
+  const blocked: { blockerId: string; blockedId: string }[] = user ? await db.blockedUser.findMany({ where: { OR: [{ blockerId: user.id }, { blockedId: user.id }] }, select: { blockerId: true, blockedId: true } }) : [];
+  const hiddenIds = new Set<string>(blocked.flatMap((x: { blockerId: string; blockedId: string }) => [x.blockerId, x.blockedId]));
   if (user) hiddenIds.delete(user.id);
-  const excludedAuthorIds = [...new Set([...muted.map((x) => x.mutedId), ...hiddenIds])];
+  const excludedAuthorIds = [...new Set([...muted.map((x: { mutedId: string }) => x.mutedId), ...hiddenIds])];
   const posts = await db.post.findMany({
     where: { deletedAt: null, visibility: "PUBLIC", authorId: { in: [user?.id ?? "", ...authorIds], notIn: excludedAuthorIds } },
     include: { author: { include: { profile: true, verification: true } }, media: { include: { media: true }, orderBy: { position: "asc" } }, poll: { include: { options: true } }, _count: { select: { likes: true, replies: true, reposts: true, bookmarks: true } } },

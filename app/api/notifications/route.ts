@@ -18,16 +18,18 @@ export async function GET(request: NextRequest) {
 
   const hasMore = notifications.length > limit;
   const items = notifications.slice(0, limit);
-  const actorIds: string[] = [...new Set(items.map((notification: { actorId: string | null }) => notification.actorId).filter((id): id is string => Boolean(id)))];
+  const actorIds = Array.from(
+    new Set(items.flatMap((notification) => (notification.actorId ? [notification.actorId] : []))),
+  );
   const actors = actorIds.length
     ? await db.user.findMany({
         where: { id: { in: actorIds }, status: "ACTIVE" },
         select: { id: true, username: true, profile: true, verification: true },
       })
     : [];
-  const actorById = new Map(actors.map((actor: { id: string }) => [actor.id, actor]));
+  const actorById = new Map(actors.map((actor) => [actor.id, actor]));
 
-  const result = items.map((notification: (typeof items)[number]) => ({
+  const result = items.map((notification) => ({
     ...notification,
     actor: notification.actorId ? actorById.get(notification.actorId) ?? null : null,
   }));

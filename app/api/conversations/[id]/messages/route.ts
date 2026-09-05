@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
 
-async function getMemberUserIds(conversationId: string, userId: string) {
+async function getMemberUserIds(conversationId: string, userId: string): Promise<string[]> {
   const members = await db.conversationMember.findMany({ where: { conversationId, NOT: { userId } }, select: { userId: true } });
-  return members.map((member) => member.userId);
+  return members.map((member: { userId: string }) => member.userId);
 }
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -31,9 +31,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const content = typeof body?.content === "string" ? body.content.trim() : "";
   if (!content || content.length > 10000) return NextResponse.json({ error: "Message must contain 1-10000 characters" }, { status: 400 });
 
-  const recipientIds = await getMemberUserIds(id, user.id);
+  const recipientIds: string[] = await getMemberUserIds(id, user.id);
   const blocked = recipientIds.length
-    ? await db.blockedUser.findFirst({ where: { OR: recipientIds.flatMap((recipientId) => [
+    ? await db.blockedUser.findFirst({ where: { OR: recipientIds.flatMap((recipientId: string) => [
       { blockerId: user.id, blockedId: recipientId },
       { blockerId: recipientId, blockedId: user.id }
     ]) } })
@@ -43,7 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const message = await db.message.create({ data: { conversationId: id, senderId: user.id, content }, include: { sender: { select: { id: true, username: true, profile: true } } } });
 
   if (recipientIds.length) {
-    await db.notification.createMany({ data: recipientIds.map((userId) => ({ userId, actorId: user.id, type: "MESSAGE" as const, entityId: message.id })) });
+    await db.notification.createMany({ data: recipientIds.map((userId: string) => ({ userId, actorId: user.id, type: "MESSAGE" as const, entityId: message.id })) });
   }
   return NextResponse.json(message, { status: 201 });
 }

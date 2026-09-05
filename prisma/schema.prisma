@@ -2,10 +2,7 @@ generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
 
 enum UserRole { USER MODERATOR ADMIN SUPER_ADMIN }
 enum AccountStatus { ACTIVE SUSPENDED BANNED DEACTIVATED }
@@ -43,6 +40,7 @@ model User {
   verification Verification?
   preferences UserPreference?
   notificationPreferences NotificationPreference?
+  sessions Session[]
 }
 
 model Profile {
@@ -90,7 +88,6 @@ model Post {
   quotePosts QuotePost[] @relation("quotedPost")
   hashtags PostHashtag[]
   mentions Mention[]
-  reports Report[]
   @@index([authorId, createdAt])
   @@index([visibility, createdAt])
 }
@@ -117,7 +114,6 @@ model MediaAsset {
   createdAt DateTime @default(now())
   posts PostMedia[]
   messages MessageMedia[]
-  reports Report[]
   @@index([ownerId, createdAt])
 }
 
@@ -260,7 +256,6 @@ model Message {
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender User @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   media MessageMedia[]
-  reports Report[]
   @@index([conversationId, createdAt])
 }
 
@@ -285,9 +280,6 @@ model Report {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   reporter User @relation("reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  post Post? @relation(fields: [targetId], references: [id], onDelete: Cascade)
-  message Message? @relation(fields: [targetId], references: [id], onDelete: Cascade)
-  media MediaAsset? @relation(fields: [targetId], references: [id], onDelete: Cascade)
   @@index([status, createdAt])
   @@index([targetType, targetId])
 }

@@ -4,7 +4,11 @@ import { requireUser } from "@/lib/auth";
 
 export async function GET() {
   const user = await requireUser();
-  const requests = await db.followRequest.findMany({ where: { targetId: user.id }, orderBy: { createdAt: "desc" }, include: { } });
+  const requests = await db.followRequest.findMany({
+    where: { targetId: user.id },
+    orderBy: { createdAt: "desc" },
+    include: { requester: { include: { profile: true, verification: true } } },
+  });
   return NextResponse.json({ requests });
 }
 
@@ -20,7 +24,7 @@ export async function PATCH(request: NextRequest) {
     await db.$transaction([
       db.follow.create({ data: { followerId: pending.requesterId, followingId: user.id } }),
       db.followRequest.delete({ where: { id: requestId } }),
-      db.notification.create({ data: { userId: pending.requesterId, actorId: user.id, type: "FOLLOW_ACCEPTED" } })
+      db.notification.create({ data: { userId: pending.requesterId, actorId: user.id, type: "FOLLOW_ACCEPTED" } }),
     ]);
     return NextResponse.json({ approved: true });
   }

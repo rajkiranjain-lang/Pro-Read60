@@ -14,15 +14,26 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
     take: limit + 1,
     ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-    include: {
-      user: { select: { id: true, username: true, profile: true, verification: true } },
-    },
   });
 
   const hasMore = notifications.length > limit;
   const items = notifications.slice(0, limit);
-  const nextCursor = hasMore ? items[items.length - 1]?.id ?? null : null;
-  const unreadCount = await db.notification.count({ where: { userId: user.id, readAt: null } });
+  const actorIds = [...new Set(items.map((notification) => notification.actorId).filter((id): id is string => Boolean(id)))];
+  const actors = actorIds.length
+    ? await db.user.findMany({
+        where: { id: { in: actorIds }, status: "ACTIVE" },
+        select: { id: true, username: true, profile: true, verification: true },
+      })
+    : [];
+  const actorById = new Map(actors.map((actor) => [actor.id, actor]));
 
-  return NextResponse.json({ notifications: items, unreadCount, nextCursor });
+  const result = items.map((notification) => ({
+    ...notification,
+    actor: notification.actorId ? actorById.get(notification.actorId) ?? null : null,
+  }));
+
+  const unreadCount = await db.notification.count({ where: { userId: user.id, readAt: null } });
+  const nextCursor = hasMore ? items[items.length - 1]?.id ?? null : null;
+
+  return NextResponse.json({ notifications: result, unreadCount, nextCursor });
 }
